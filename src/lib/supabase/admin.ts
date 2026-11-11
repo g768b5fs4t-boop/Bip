@@ -6,20 +6,34 @@ import {
   getSupabaseUrl,
 } from "@/lib/config";
 
-let cached: SupabaseClient | null = null;
+let cachedAdmin: SupabaseClient | null = null;
 
-/** Client serveur uniquement (secret/service_role si dispo, sinon publishable/anon). */
+/** Client serveur privilégié (secret/service_role). Jamais exposé au navigateur. */
 export function getSupabaseAdmin(): SupabaseClient | null {
   const flags = getServerFeatureFlags();
   if (!flags.supabaseConfigured) return null;
-  if (cached) return cached;
+  if (cachedAdmin) return cachedAdmin;
 
   const url = getSupabaseUrl();
-  const key = getSupabaseSecretKey() || getSupabasePublishableKey() || "";
+  const key = getSupabaseSecretKey();
   if (!url || !key) return null;
 
-  cached = createClient(url, key, {
+  cachedAdmin = createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return cached;
+  return cachedAdmin;
+}
+
+/** Client lié au JWT utilisateur — RLS appliquée. */
+export function getSupabaseForUser(accessToken: string): SupabaseClient | null {
+  const url = getSupabaseUrl();
+  const key = getSupabasePublishableKey() || getSupabaseSecretKey();
+  if (!url || !key || !accessToken) return null;
+
+  return createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  });
 }

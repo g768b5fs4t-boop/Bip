@@ -5,6 +5,7 @@ export type FeatureFlags = {
   openaiConfigured: boolean;
   whisperConfigured: boolean;
   resendConfigured: boolean;
+  localDemoAllowed: boolean;
   mode: "local-demo" | "hybrid" | "saas";
 };
 
@@ -36,7 +37,9 @@ export function getServerFeatureFlags(): FeatureFlags {
   );
   const openaiConfigured = Boolean(process.env.OPENAI_API_KEY?.trim());
   const whisperConfigured = openaiConfigured; // même clé, endpoint audio
-  const resendConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+  const resendConfigured = Boolean(
+    process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim(),
+  );
 
   let mode: FeatureFlags["mode"] = "local-demo";
   if (supabaseConfigured && openaiConfigured) mode = "saas";
@@ -47,6 +50,7 @@ export function getServerFeatureFlags(): FeatureFlags {
     openaiConfigured,
     whisperConfigured,
     resendConfigured,
+    localDemoAllowed: process.env.VERCEL !== "1",
     mode,
   };
 }

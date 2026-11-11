@@ -97,9 +97,14 @@ export function nextQuoteNumber(
   return `${prefix}${String(next).padStart(4, "0")}`;
 }
 
-export function createId(prefix = "id"): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+/** Identifiants UUID (compatibles Postgres / Supabase). Le préfixe est ignoré. */
+export function createId(_prefix = "id"): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
   }
-  return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }

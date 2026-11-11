@@ -9,7 +9,7 @@ import { computeQuoteTotals } from "@/lib/quote-engine";
 import { useAppStore } from "@/lib/store";
 
 export default function DashboardPage() {
-  const { quotes, clients, products, company } = useAppStore();
+  const { quotes, clients, products, company, cloudSync } = useAppStore();
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
 
   useEffect(() => {
@@ -59,7 +59,12 @@ export default function DashboardPage() {
           {" · "}
           IA {features.openaiConfigured ? "OpenAI prête" : "parser local"}
           {" · "}
-          Supabase {features.supabaseConfigured ? "configuré" : "non branché (données locales)"}
+          Supabase{" "}
+          {features.supabaseConfigured
+            ? cloudSync
+              ? "sync active"
+              : "configuré (session locale)"
+            : "non branché (données locales)"}
           {" · "}
           E-mail {features.resendConfigured ? "Resend prêt" : "non configuré"}
         </p>

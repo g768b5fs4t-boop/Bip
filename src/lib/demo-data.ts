@@ -10,7 +10,7 @@ import type {
 } from "./types";
 
 export const demoCompany: Company = {
-  id: "co_demo",
+  id: "11111111-1111-4111-8111-111111111111",
   name: "Martin Automatismes",
   address: "12 rue des Artisans",
   city: "Lyon",
@@ -30,7 +30,7 @@ export const demoCompany: Company = {
 };
 
 export const demoUser: DemoUser = {
-  id: "user_demo",
+  id: "00000000-0000-4000-8000-000000000001",
   email: "demo@devisrapide.fr",
   name: "Jean Martin",
   companyId: demoCompany.id,
@@ -38,7 +38,7 @@ export const demoUser: DemoUser = {
 
 export const demoSuppliers: Supplier[] = [
   {
-    id: "sup_somfy",
+    id: "22222222-2222-4222-8222-222222222201",
     companyId: demoCompany.id,
     name: "Somfy Pro",
     email: "pro@somfy.example",
@@ -47,7 +47,7 @@ export const demoSuppliers: Supplier[] = [
     createdAt: "2026-01-10T10:00:00.000Z",
   },
   {
-    id: "sup_nice",
+    id: "22222222-2222-4222-8222-222222222202",
     companyId: demoCompany.id,
     name: "Nice France",
     email: "b2b@nice.example",
@@ -59,9 +59,9 @@ export const demoSuppliers: Supplier[] = [
 
 export const demoProducts: Product[] = [
   {
-    id: "prod_mot123",
+    id: "33333333-3333-4333-8333-333333333301",
     companyId: demoCompany.id,
-    supplierId: "sup_somfy",
+    supplierId: demoSuppliers[0].id,
     reference: "MOT123",
     designation: "Moteur tubulaire 20 Nm",
     unit: "u",
@@ -71,9 +71,9 @@ export const demoProducts: Product[] = [
     updatedAt: "2026-02-01T09:00:00.000Z",
   },
   {
-    id: "prod_tel456",
+    id: "33333333-3333-4333-8333-333333333302",
     companyId: demoCompany.id,
-    supplierId: "sup_nice",
+    supplierId: demoSuppliers[1].id,
     reference: "TEL456",
     designation: "Télécommande 4 canaux",
     unit: "u",
@@ -83,9 +83,9 @@ export const demoProducts: Product[] = [
     updatedAt: "2026-02-05T09:00:00.000Z",
   },
   {
-    id: "prod_rail789",
+    id: "33333333-3333-4333-8333-333333333303",
     companyId: demoCompany.id,
-    supplierId: "sup_somfy",
+    supplierId: demoSuppliers[0].id,
     reference: "RAIL789",
     designation: "Rail de guidage 3 m",
     unit: "u",
@@ -95,9 +95,9 @@ export const demoProducts: Product[] = [
     updatedAt: "2026-02-08T09:00:00.000Z",
   },
   {
-    id: "prod_bat001",
+    id: "33333333-3333-4333-8333-333333333304",
     companyId: demoCompany.id,
-    supplierId: "sup_nice",
+    supplierId: demoSuppliers[1].id,
     reference: "BAT001",
     designation: "Piles CR2032 (lot de 2)",
     unit: "u",
@@ -110,7 +110,7 @@ export const demoProducts: Product[] = [
 
 export const demoClients: Client[] = [
   {
-    id: "cli_martin",
+    id: "44444444-4444-4444-8444-444444444401",
     companyId: demoCompany.id,
     name: "Monsieur Martin",
     address: "8 avenue des Lilas",
@@ -121,7 +121,7 @@ export const demoClients: Client[] = [
     createdAt: "2026-01-20T10:00:00.000Z",
   },
   {
-    id: "cli_dupont",
+    id: "44444444-4444-4444-8444-444444444402",
     companyId: demoCompany.id,
     name: "Madame Dupont",
     address: "3 place Bellecour",
@@ -136,7 +136,7 @@ export const demoClients: Client[] = [
 export const demoQuotes: Quote[] = [];
 
 const welcome: ChatMessage = {
-  id: "msg_welcome",
+  id: "55555555-5555-4555-8555-555555555501",
   role: "assistant",
   content:
     "Bonjour ! Je suis l'assistant DevisRapide IA.\n\nDécrivez-moi le devis à préparer, par exemple :\n« Fais-moi un devis pour Monsieur Martin, avec 2 moteurs référence MOT123, 4 télécommandes TEL456, 5 heures de pose et 150 € de déplacement. »\n\nJe chercherai uniquement dans **votre** catalogue, sans inventer de prix.",
@@ -145,7 +145,7 @@ const welcome: ChatMessage = {
 
 export const demoConversations: Conversation[] = [
   {
-    id: "conv_demo",
+    id: "55555555-5555-4555-8555-555555555502",
     companyId: demoCompany.id,
     title: "Nouvelle conversation",
     createdAt: new Date().toISOString(),

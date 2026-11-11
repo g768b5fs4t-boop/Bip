@@ -17,9 +17,10 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: `env -u DATABASE_URL -u VERCEL -u CURSOR_APP_ID npm run start -- --port ${port} --hostname 127.0.0.1`,
+    // Pas de VERCEL → démo locale autorisée ; cookies non-Secure sur http://127.0.0.1
+    command: `env -u VERCEL -u CURSOR_APP_ID npm run start -- --port ${port} --hostname 127.0.0.1`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [

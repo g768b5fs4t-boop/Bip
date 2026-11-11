@@ -15,6 +15,6 @@ SUPABASE_JWKS_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
-# E-mail transactionnel (envoi devis après validation)
+# E-mail transactionnel (envoi devis après validation) — les deux requis
 RESEND_API_KEY=
 EMAIL_FROM="DevisRapide <devis@votre-domaine.fr>"

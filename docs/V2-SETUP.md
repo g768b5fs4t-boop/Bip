@@ -15,9 +15,10 @@
 | `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SECRET_KEY` (ou anon/service_role legacy) | Comptes + sync + RLS | Gratuit au démarrage |
 | `RESEND_API_KEY` + `EMAIL_FROM` | Envoi devis e-mail | Gratuit petit volume |
 
-1. Copier `.env.example` vers les secrets Vercel / Cursor.
-2. Appliquer `supabase/migrations/001_init.sql` dans Supabase.
-3. Ne jamais exposer `OPENAI_API_KEY` / `SERVICE_ROLE` au navigateur.
+1. Copier les variables vers Vercel (voir aussi `docs/SECURITE-AUTH-V3.md`).
+2. Appliquer `001_init.sql` puis `002_vat_rates_grants.sql` dans Supabase.
+3. Ne jamais exposer `OPENAI_API_KEY` / `SUPABASE_SECRET_KEY` au navigateur.
+4. En production, la démo ouverte est désactivée : compte e-mail requis.
 
 ## Déploiement Vercel (projet bip)
 1. Merger la PR V2.
