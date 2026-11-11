@@ -1,5 +1,13 @@
 import type { Client, Company, Product, Quote, Supplier } from "@/lib/types";
 
+export type PersistEntity =
+  | "company"
+  | "supplier"
+  | "client"
+  | "product"
+  | "products"
+  | "quote";
+
 export async function persistEntity(
   body:
     | { entity: "company"; data: Partial<Company> }
@@ -14,6 +22,22 @@ export async function persistEntity(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function deleteEntity(
+  entity: "supplier" | "client" | "product" | "quote",
+  id: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/tenant/persist", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entity, action: "delete", id }),
     });
     return res.ok;
   } catch {

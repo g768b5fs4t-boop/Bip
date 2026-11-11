@@ -3,6 +3,7 @@ import { requireTenant } from "@/lib/auth-server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { Client, Company, Product, Quote, Supplier } from "@/lib/types";
 import {
+  deleteTenantRow,
   persistClient,
   persistCompany,
   persistProduct,
@@ -15,12 +16,17 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type PersistBody =
-  | { entity: "company"; data: Partial<Company> }
-  | { entity: "supplier"; data: Supplier }
-  | { entity: "client"; data: Client }
-  | { entity: "product"; data: Product }
-  | { entity: "products"; data: Product[] }
-  | { entity: "quote"; data: Quote };
+  | { entity: "company"; data: Partial<Company>; action?: "upsert" }
+  | { entity: "supplier"; data: Supplier; action?: "upsert" }
+  | { entity: "client"; data: Client; action?: "upsert" }
+  | { entity: "product"; data: Product; action?: "upsert" }
+  | { entity: "products"; data: Product[]; action?: "upsert" }
+  | { entity: "quote"; data: Quote; action?: "upsert" }
+  | {
+      entity: "supplier" | "client" | "product" | "quote";
+      action: "delete";
+      id: string;
+    };
 
 export async function POST(req: NextRequest) {
   const tenant = await requireTenant(req);
@@ -44,6 +50,24 @@ export async function POST(req: NextRequest) {
   }
 
   const { accessToken, companyId } = tenant;
+
+  if (body.action === "delete") {
+    const table =
+      body.entity === "supplier"
+        ? "suppliers"
+        : body.entity === "client"
+          ? "clients"
+          : body.entity === "product"
+            ? "products"
+            : "quotes";
+    if (!body.id) {
+      return NextResponse.json({ error: "Identifiant manquant" }, { status: 400 });
+    }
+    const res = await deleteTenantRow(accessToken, companyId, table, body.id);
+    return res.ok
+      ? NextResponse.json({ ok: true })
+      : NextResponse.json({ error: "Échec suppression" }, { status: 500 });
+  }
 
   switch (body.entity) {
     case "company": {
