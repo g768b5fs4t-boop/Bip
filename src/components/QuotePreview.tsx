@@ -5,30 +5,38 @@ import { computeQuoteTotals, lineTotalHt } from "@/lib/quote-engine";
 import { useAppStore } from "@/lib/store";
 import type { Quote } from "@/lib/types";
 import { useState } from "react";
+import { EmptyState, StatusBadge, Toast } from "./ui";
 
 export function QuotePreview({ quote }: { quote: Quote | null }) {
   const { company, clients, validateQuote } = useAppStore();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [tone, setTone] = useState<"info" | "ok" | "warn" | "error">("info");
 
   if (!quote) {
     return (
       <div className="panel flex h-full flex-col p-5">
         <h2 className="font-display text-xl text-brand-deep">Aperçu du devis</h2>
-        <p className="mt-3 text-sm text-muted">
-          Aucun brouillon pour l’instant. Demandez un devis dans le chat : les
-          totaux apparaîtront ici avant validation.
-        </p>
+        <div className="mt-4">
+          <EmptyState
+            title="Aucun brouillon"
+            description="Demandez un devis dans le chat. Les totaux HT / TVA / TTC apparaîtront ici avant validation."
+          />
+        </div>
       </div>
     );
   }
 
   const client = clients.find((c) => c.id === quote.clientId);
   const totals = computeQuoteTotals(quote.lines);
+  const current = quote;
 
   async function exportPdf() {
-    if (!quote || !client) return;
-    const current = quote;
+    if (!client) {
+      setTone("error");
+      setMessage("Client introuvable pour ce devis.");
+      return;
+    }
     setBusy(true);
     setMessage(null);
     try {
@@ -43,10 +51,12 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
         }),
       });
       if (res.status === 401) {
+        setTone("warn");
         setMessage("Session expirée : reconnectez-vous pour exporter le PDF.");
         return;
       }
       if (res.status === 429) {
+        setTone("warn");
         setMessage("Trop de demandes PDF : patientez une minute.");
         return;
       }
@@ -58,8 +68,10 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
       a.download = `${current.number}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      setMessage("PDF téléchargé. Envoi e-mail : uniquement après votre accord.");
+      setTone("ok");
+      setMessage("PDF téléchargé. L’envoi e-mail reste manuel.");
     } catch {
+      setTone("error");
       setMessage("Échec de la génération PDF.");
     } finally {
       setBusy(false);
@@ -67,7 +79,7 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
   }
 
   return (
-    <div className="panel flex h-full flex-col overflow-hidden">
+    <div className="panel flex h-full flex-col overflow-hidden" aria-label="Aperçu du devis">
       <div className="border-b border-line px-5 py-4">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -75,13 +87,11 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
               {quote.number}
             </h2>
             <p className="text-xs text-muted">
-              Statut : {quote.status} · Valide jusqu’au{" "}
+              Valide jusqu’au{" "}
               {new Date(quote.validUntil).toLocaleDateString("fr-FR")}
             </p>
           </div>
-          <span className="rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-semibold text-brand-deep">
-            Aperçu
-          </span>
+          <StatusBadge status={quote.status} />
         </div>
       </div>
 
@@ -100,12 +110,21 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
 
         <div className="overflow-hidden rounded-xl border border-line">
           <table className="w-full text-left text-xs">
+            <caption className="sr-only">Lignes du devis {quote.number}</caption>
             <thead className="bg-[#f4f8f8] text-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Désignation</th>
-                <th className="px-2 py-2 font-medium">Qté</th>
-                <th className="px-2 py-2 font-medium">P.U. HT</th>
-                <th className="px-3 py-2 font-medium text-right">Total</th>
+                <th scope="col" className="px-3 py-2 font-medium">
+                  Désignation
+                </th>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  Qté
+                </th>
+                <th scope="col" className="px-2 py-2 font-medium">
+                  P.U. HT
+                </th>
+                <th scope="col" className="px-3 py-2 font-medium text-right">
+                  Total
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -119,10 +138,10 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
                     )}
                     {line.designation}
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-2 py-2">
                     {line.quantity} {line.unit}
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="whitespace-nowrap px-2 py-2">
                     {formatEuro(line.unitPriceHt)}
                   </td>
                   <td className="px-3 py-2 text-right font-medium">
@@ -154,24 +173,26 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
         <button
           type="button"
           className="btn-primary w-full"
+          disabled={quote.status === "valide"}
           onClick={() => {
             validateQuote(quote.id);
+            setTone("ok");
             setMessage(
               "Devis validé. L’envoi e-mail reste manuel — l’IA n’envoie rien seule.",
             );
           }}
         >
-          Valider le devis
+          {quote.status === "valide" ? "Devis déjà validé" : "Valider le devis"}
         </button>
         <button
           type="button"
           className="btn-secondary w-full"
           disabled={busy}
-          onClick={exportPdf}
+          onClick={() => void exportPdf()}
         >
           {busy ? "Génération…" : "Exporter en PDF"}
         </button>
-        {message && <p className="text-xs text-muted">{message}</p>}
+        {message && <Toast tone={tone}>{message}</Toast>}
       </div>
     </div>
   );

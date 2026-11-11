@@ -60,4 +60,6 @@ Ouvrir [http://localhost:3000](http://localhost:3000).
 - `npm run dev` — développement
 - `npm run build` — build production
 - `npm run start` — serveur production
-- `npm run lint` — ESLint
+- `npm run typecheck` / `npm run lint` — vérification TypeScript
+- `npm run test` — Vitest (calculs + parser IA)
+- `npm run test:e2e` — Playwright (desktop + mobile Chromium)

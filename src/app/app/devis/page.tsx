@@ -1,29 +1,43 @@
 "use client";
 
+import Link from "next/link";
+import { EmptyState, PageHeader, StatusBadge } from "@/components/ui";
 import { formatEuro } from "@/lib/money";
 import { computeQuoteTotals } from "@/lib/quote-engine";
 import { useAppStore } from "@/lib/store";
-import Link from "next/link";
 
 export default function DevisPage() {
-  const { quotes, clients, setDraftQuote, setActiveConversation, conversations } =
-    useAppStore();
+  const {
+    quotes,
+    clients,
+    setDraftQuote,
+    setActiveConversation,
+    conversations,
+  } = useAppStore();
 
   return (
-    <div className="h-full overflow-auto p-4 lg:p-6">
-      <h1 className="font-display text-3xl text-brand-deep">Devis</h1>
-      <p className="mt-1 text-sm text-muted">
-        Historique des brouillons et devis validés. L’envoi e-mail nécessite
-        toujours votre accord.
-      </p>
+    <div id="contenu-principal" className="h-full overflow-auto p-4 lg:p-6">
+      <PageHeader
+        title="Devis"
+        subtitle="Historique des brouillons et devis validés. L’envoi e-mail nécessite toujours votre accord."
+        actions={
+          <Link href="/app" className="btn-primary">
+            Nouvel assistant
+          </Link>
+        }
+      />
 
       {quotes.length === 0 ? (
-        <div className="panel mt-6 p-6 text-sm text-muted">
-          Aucun devis pour l’instant.{" "}
-          <Link href="/app" className="font-semibold text-brand">
-            Ouvrir l’assistant
-          </Link>{" "}
-          pour en créer un par conversation.
+        <div className="mt-6">
+          <EmptyState
+            title="Aucun devis pour l’instant"
+            description="Ouvrez l’assistant et décrivez un chantier avec des références catalogue."
+            action={
+              <Link href="/app" className="btn-primary">
+                Ouvrir l’assistant
+              </Link>
+            }
+          />
         </div>
       ) : (
         <ul className="mt-6 space-y-3">
@@ -37,13 +51,18 @@ export default function DevisPage() {
               const client = clients.find((c) => c.id === q.clientId);
               const totals = computeQuoteTotals(q.lines);
               return (
-                <li key={q.id} className="panel flex flex-wrap items-center justify-between gap-3 p-4">
+                <li
+                  key={q.id}
+                  className="panel flex flex-wrap items-center justify-between gap-3 p-4"
+                >
                   <div>
-                    <p className="font-semibold text-brand-deep">{q.number}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-brand-deep">{q.number}</p>
+                      <StatusBadge status={q.status} />
+                    </div>
                     <p className="text-sm text-muted">
                       {client?.name ?? "Client"} ·{" "}
-                      {new Date(q.createdAt).toLocaleDateString("fr-FR")} ·{" "}
-                      {q.status}
+                      {new Date(q.createdAt).toLocaleDateString("fr-FR")}
                     </p>
                     <p className="mt-1 text-sm font-medium">
                       {formatEuro(totals.totalTtc)} TTC

@@ -28,12 +28,6 @@ export default function HomePage() {
           <Link href="/connexion" className="btn-primary bg-accent px-6 py-3">
             Essayer la démo
           </Link>
-          <Link
-            href="/connexion"
-            className="btn-secondary border-white/30 bg-white/10 text-white backdrop-blur"
-          >
-            Se connecter
-          </Link>
         </div>
       </div>
     </main>

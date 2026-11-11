@@ -27,6 +27,31 @@ export function lineTotalHt(line: QuoteLine): number {
   return roundMoney(raw);
 }
 
+/** Remise en % du HT hors lignes de remise déjà présentes. */
+export function buildPercentDiscountLine(
+  lines: QuoteLine[],
+  percent: number,
+  vatRate: number,
+): QuoteLine | null {
+  if (!(percent > 0) || percent > 100) return null;
+  const base = roundMoney(
+    lines
+      .filter((l) => l.type !== "remise")
+      .reduce((s, l) => s + lineTotalHt(l), 0),
+  );
+  if (base <= 0) return null;
+  const amount = roundMoney(base * (percent / 100));
+  return {
+    id: createId("line"),
+    type: "remise",
+    designation: `Remise commerciale ${percent} %`,
+    quantity: 1,
+    unit: "forfait",
+    unitPriceHt: amount,
+    vatRate,
+  };
+}
+
 export function computeQuoteTotals(lines: QuoteLine[]): QuoteTotals {
   const byRate = new Map<number, { baseHt: number; vat: number }>();
 
@@ -58,7 +83,10 @@ export function computeQuoteTotals(lines: QuoteLine[]): QuoteTotals {
   };
 }
 
-export function nextQuoteNumber(existing: Quote[], year = new Date().getFullYear()): string {
+export function nextQuoteNumber(
+  existing: Quote[],
+  year = new Date().getFullYear(),
+): string {
   const prefix = `D-${year}-`;
   const seq = existing
     .map((q) => q.number)
@@ -70,5 +98,8 @@ export function nextQuoteNumber(existing: Quote[], year = new Date().getFullYear
 }
 
 export function createId(prefix = "id"): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `${prefix}_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+  }
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
 }
