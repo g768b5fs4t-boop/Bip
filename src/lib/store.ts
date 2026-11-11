@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { persistEntity, newEntityId } from "./cloud-sync";
+import { deleteEntity, persistEntity, newEntityId } from "./cloud-sync";
 import {
   demoClients,
   demoCompany,
@@ -20,6 +20,7 @@ import type {
   Conversation,
   Product,
   Quote,
+  QuoteStatus,
   Supplier,
 } from "./types";
 
@@ -47,18 +48,31 @@ interface AppState {
   syncSession: () => Promise<boolean>;
   updateCompany: (patch: Partial<Company>) => void;
   addSupplier: (data: Omit<Supplier, "id" | "companyId" | "createdAt">) => void;
+  updateSupplier: (
+    id: string,
+    patch: Partial<Omit<Supplier, "id" | "companyId" | "createdAt">>,
+  ) => { ok: boolean; error?: string };
+  deleteSupplier: (id: string) => { ok: boolean; error?: string };
   addClient: (data: Omit<Client, "id" | "companyId" | "createdAt">) => void;
+  updateClient: (
+    id: string,
+    patch: Partial<Omit<Client, "id" | "companyId" | "createdAt">>,
+  ) => void;
+  deleteClient: (id: string) => { ok: boolean; error?: string };
   addProduct: (
     data: Omit<Product, "id" | "companyId" | "updatedAt">,
-  ) => void;
+  ) => { ok: boolean; error?: string };
   updateProduct: (id: string, patch: Partial<Product>) => void;
+  deleteProduct: (id: string) => void;
   importProducts: (
     rows: Omit<Product, "id" | "companyId" | "updatedAt">[],
-  ) => number;
+  ) => { imported: number; updated: number };
   addMessage: (conversationId: string, message: ChatMessage) => void;
   setDraftQuote: (quote: Quote | null, conversationId?: string) => void;
   saveQuote: (quote: Quote) => void;
   validateQuote: (quoteId: string) => void;
+  setQuoteStatus: (quoteId: string, status: QuoteStatus) => void;
+  deleteQuote: (quoteId: string) => void;
   newConversation: () => string;
   setActiveConversation: (id: string) => void;
   resetDemo: () => void;
@@ -224,6 +238,32 @@ export const useAppStore = create<AppState>()(
           void persistEntity({ entity: "supplier", data: supplier });
         }
       },
+      updateSupplier: (id, patch) => {
+        const existing = get().suppliers.find((s) => s.id === id);
+        if (!existing) return { ok: false, error: "Fournisseur introuvable." };
+        const next = { ...existing, ...patch };
+        set((s) => ({
+          suppliers: s.suppliers.map((sUp) => (sUp.id === id ? next : sUp)),
+        }));
+        if (get().cloudSync) {
+          void persistEntity({ entity: "supplier", data: next });
+        }
+        return { ok: true };
+      },
+      deleteSupplier: (id) => {
+        const linked = get().products.some((p) => p.supplierId === id);
+        if (linked) {
+          return {
+            ok: false,
+            error: "Des produits sont liés à ce fournisseur. Réassignez-les d’abord.",
+          };
+        }
+        set((s) => ({ suppliers: s.suppliers.filter((sUp) => sUp.id !== id) }));
+        if (get().cloudSync) {
+          void deleteEntity("supplier", id);
+        }
+        return { ok: true };
+      },
       addClient: (data) => {
         const client: Client = {
           ...data,
@@ -236,9 +276,42 @@ export const useAppStore = create<AppState>()(
           void persistEntity({ entity: "client", data: client });
         }
       },
+      updateClient: (id, patch) => {
+        const existing = get().clients.find((c) => c.id === id);
+        if (!existing) return;
+        const next = { ...existing, ...patch };
+        set((s) => ({
+          clients: s.clients.map((c) => (c.id === id ? next : c)),
+        }));
+        if (get().cloudSync) {
+          void persistEntity({ entity: "client", data: next });
+        }
+      },
+      deleteClient: (id) => {
+        const linked = get().quotes.some((q) => q.clientId === id);
+        if (linked) {
+          return {
+            ok: false,
+            error: "Ce client a des devis. Archivez ou supprimez les devis d’abord.",
+          };
+        }
+        set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }));
+        if (get().cloudSync) {
+          void deleteEntity("client", id);
+        }
+        return { ok: true };
+      },
       addProduct: (data) => {
+        const ref = data.reference.trim().toUpperCase();
+        if (get().products.some((p) => p.reference.toUpperCase() === ref)) {
+          return { ok: false, error: `La référence ${ref} existe déjà.` };
+        }
+        if (!(data.purchasePriceHt >= 0) || Number.isNaN(data.purchasePriceHt)) {
+          return { ok: false, error: "Prix d’achat invalide." };
+        }
         const product: Product = {
           ...data,
+          reference: ref,
           id: get().cloudSync ? newEntityId() : createId("prod"),
           companyId: get().company.id,
           updatedAt: new Date().toISOString(),
@@ -247,6 +320,7 @@ export const useAppStore = create<AppState>()(
         if (get().cloudSync) {
           void persistEntity({ entity: "product", data: product });
         }
+        return { ok: true };
       },
       updateProduct: (id, patch) => {
         set((s) => ({
@@ -263,21 +337,56 @@ export const useAppStore = create<AppState>()(
           }
         }
       },
+      deleteProduct: (id) => {
+        set((s) => ({ products: s.products.filter((p) => p.id !== id) }));
+        if (get().cloudSync) {
+          void deleteEntity("product", id);
+        }
+      },
       importProducts: (rows) => {
         const companyId = get().company.id;
         const now = new Date().toISOString();
         const cloud = get().cloudSync;
-        const mapped = rows.map((r) => ({
-          ...r,
-          id: cloud ? newEntityId() : createId("prod"),
-          companyId,
-          updatedAt: now,
-        }));
-        set((s) => ({ products: [...s.products, ...mapped] }));
-        if (cloud) {
-          void persistEntity({ entity: "products", data: mapped });
+        let imported = 0;
+        let updated = 0;
+        const nextProducts = [...get().products];
+        const touched: Product[] = [];
+
+        for (const row of rows) {
+          const ref = row.reference.trim().toUpperCase();
+          const idx = nextProducts.findIndex(
+            (p) => p.reference.toUpperCase() === ref,
+          );
+          if (idx >= 0) {
+            const merged: Product = {
+              ...nextProducts[idx],
+              ...row,
+              reference: ref,
+              companyId,
+              updatedAt: now,
+            };
+            nextProducts[idx] = merged;
+            touched.push(merged);
+            updated += 1;
+          } else {
+            const created: Product = {
+              ...row,
+              reference: ref,
+              id: cloud ? newEntityId() : createId("prod"),
+              companyId,
+              updatedAt: now,
+            };
+            nextProducts.push(created);
+            touched.push(created);
+            imported += 1;
+          }
         }
-        return mapped.length;
+
+        set({ products: nextProducts });
+        if (cloud && touched.length) {
+          void persistEntity({ entity: "products", data: touched });
+        }
+        return { imported, updated };
       },
       addMessage: (conversationId, message) =>
         set((s) => ({
@@ -331,9 +440,12 @@ export const useAppStore = create<AppState>()(
         }
       },
       validateQuote: (quoteId) => {
+        get().setQuoteStatus(quoteId, "valide");
+      },
+      setQuoteStatus: (quoteId, status) => {
         set((s) => ({
           quotes: s.quotes.map((q) =>
-            q.id === quoteId ? { ...q, status: "valide" } : q,
+            q.id === quoteId ? { ...q, status } : q,
           ),
         }));
         if (get().cloudSync) {
@@ -341,9 +453,18 @@ export const useAppStore = create<AppState>()(
           if (quote) {
             void persistEntity({
               entity: "quote",
-              data: { ...quote, status: "valide" },
+              data: { ...quote, status },
             });
           }
+        }
+      },
+      deleteQuote: (quoteId) => {
+        set((s) => ({
+          quotes: s.quotes.filter((q) => q.id !== quoteId),
+          draftQuoteId: s.draftQuoteId === quoteId ? null : s.draftQuoteId,
+        }));
+        if (get().cloudSync) {
+          void deleteEntity("quote", quoteId);
         }
       },
       newConversation: () => {

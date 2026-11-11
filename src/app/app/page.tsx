@@ -9,7 +9,14 @@ import { computeQuoteTotals } from "@/lib/quote-engine";
 import { useAppStore } from "@/lib/store";
 
 export default function DashboardPage() {
-  const { quotes, clients, products, company, cloudSync } = useAppStore();
+  const {
+    quotes,
+    clients,
+    products,
+    suppliers,
+    company,
+    cloudSync,
+  } = useAppStore();
   const [features, setFeatures] = useState<FeatureFlags | null>(null);
 
   useEffect(() => {
@@ -25,13 +32,42 @@ export default function DashboardPage() {
     const accepted = quotes.filter((q) => q.status === "accepte").length;
     const pending = quotes.filter((q) =>
       ["valide", "envoye"].includes(q.status),
-    );
+    ).length;
     const total = quotes.reduce(
       (s, q) => s + computeQuoteTotals(q.lines).totalTtc,
       0,
     );
     return { drafts, sent, accepted, pending, total };
   }, [quotes]);
+
+  const checklist = [
+    {
+      ok: Boolean(company.name && company.siret),
+      label: "Compléter la fiche entreprise",
+      href: "/app/entreprise",
+    },
+    {
+      ok: suppliers.length > 0,
+      label: "Ajouter au moins un fournisseur",
+      href: "/app/fournisseurs",
+    },
+    {
+      ok: products.length > 0,
+      label: "Importer ou créer le catalogue",
+      href: "/app/produits",
+    },
+    {
+      ok: clients.length > 0,
+      label: "Enregistrer un client",
+      href: "/app/clients",
+    },
+    {
+      ok: quotes.length > 0,
+      label: "Créer le premier devis",
+      href: "/app/creer",
+    },
+  ];
+  const setupDone = checklist.every((c) => c.ok);
 
   const recentClients = clients.slice(0, 4);
   const recentQuotes = [...quotes]
@@ -45,7 +81,7 @@ export default function DashboardPage() {
     <div id="contenu-principal" className="space-y-5 p-4 pb-28 lg:p-6">
       <PageHeader
         title={company.name}
-        subtitle="Tableau de bord — créez un devis en moins de deux minutes."
+        subtitle="Pilotage : catalogue, clients, devis, PDF — en moins de deux minutes."
         actions={
           <Link href="/app/creer" className="btn-primary px-5 py-3 text-base">
             Créer un devis
@@ -70,9 +106,30 @@ export default function DashboardPage() {
         </p>
       )}
 
+      {!setupDone && (
+        <section className="panel p-4">
+          <h2 className="font-display text-lg text-brand-deep">Mise en route</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {checklist.map((item) => (
+              <li key={item.href} className="flex items-center justify-between gap-2">
+                <span className={item.ok ? "text-muted line-through" : ""}>
+                  {item.ok ? "✓ " : "○ "}
+                  {item.label}
+                </span>
+                {!item.ok && (
+                  <Link href={item.href} className="text-xs font-semibold text-brand">
+                    Faire
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatChip label="Brouillons" value={stats.drafts} />
-        <StatChip label="Envoyés" value={stats.sent} />
+        <StatChip label="En cours" value={stats.pending} />
         <StatChip label="Acceptés" value={stats.accepted} />
         <StatChip label="Volume TTC" value={formatEuro(stats.total)} />
       </div>
@@ -97,20 +154,22 @@ export default function DashboardPage() {
               const client = clients.find((c) => c.id === q.clientId);
               const t = computeQuoteTotals(q.lines);
               return (
-                <li
-                  key={q.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2 text-sm"
-                >
-                  <div>
-                    <p className="font-medium">{q.number}</p>
-                    <p className="text-xs text-muted">{client?.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <StatusBadge status={q.status} />
-                    <p className="mt-1 text-xs font-semibold">
-                      {formatEuro(t.totalTtc)}
-                    </p>
-                  </div>
+                <li key={q.id}>
+                  <Link
+                    href={`/app/devis/${q.id}`}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2 text-sm transition hover:bg-[color:var(--bg-elevated)]"
+                  >
+                    <div>
+                      <p className="font-medium">{q.number}</p>
+                      <p className="text-xs text-muted">{client?.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <StatusBadge status={q.status} />
+                      <p className="mt-1 text-xs font-semibold">
+                        {formatEuro(t.totalTtc)}
+                      </p>
+                    </div>
+                  </Link>
                 </li>
               );
             })}
@@ -118,29 +177,48 @@ export default function DashboardPage() {
         )}
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-3">
         <div className="panel p-4">
-          <h2 className="font-display text-lg text-brand-deep">Clients récents</h2>
+          <h2 className="font-display text-lg text-brand-deep">Clients</h2>
           <p className="mt-1 text-xs text-muted">{clients.length} au total</p>
-          <ul className="mt-3 space-y-1 text-sm">
-            {recentClients.map((c) => (
-              <li key={c.id}>{c.name}</li>
-            ))}
-          </ul>
-          <Link href="/app/clients" className="mt-3 inline-block text-xs font-semibold text-brand">
+          {recentClients.length === 0 ? (
+            <p className="mt-3 text-sm text-muted">Aucun client.</p>
+          ) : (
+            <ul className="mt-3 space-y-1 text-sm">
+              {recentClients.map((c) => (
+                <li key={c.id}>{c.name}</li>
+              ))}
+            </ul>
+          )}
+          <Link
+            href="/app/clients"
+            className="mt-3 inline-block text-xs font-semibold text-brand"
+          >
             Gérer les clients
           </Link>
         </div>
         <div className="panel p-4">
           <h2 className="font-display text-lg text-brand-deep">Catalogue</h2>
           <p className="mt-1 text-sm text-muted">
-            {products.length} références · prêts pour l’IA
+            {products.length} références · {suppliers.length} fournisseurs
           </p>
-          <Link href="/app/produits" className="mt-3 inline-block text-xs font-semibold text-brand">
+          <Link
+            href="/app/produits"
+            className="mt-3 inline-block text-xs font-semibold text-brand"
+          >
             Ouvrir le catalogue
           </Link>
-          <Link href="/app" className="mt-2 block text-xs font-semibold text-brand">
-            Assistant conversationnel
+        </div>
+        <div className="panel p-4">
+          <h2 className="font-display text-lg text-brand-deep">Entreprise</h2>
+          <p className="mt-1 text-sm text-muted">
+            {company.hourlyRateHt} €/h · TVA {company.defaultVatRate} %
+          </p>
+          <Link
+            href="/app/entreprise"
+            className="mt-3 inline-block text-xs font-semibold text-brand"
+          >
+            Modifier la fiche
           </Link>
         </div>
       </section>

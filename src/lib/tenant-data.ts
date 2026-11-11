@@ -140,3 +140,19 @@ export async function persistQuote(
   const { error } = await client.from("quotes").upsert(row);
   return error ? { ok: false, error: "persist_failed" } : { ok: true };
 }
+
+export async function deleteTenantRow(
+  accessToken: string,
+  companyId: string,
+  table: "suppliers" | "clients" | "products" | "quotes",
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const client = getSupabaseForUser(accessToken);
+  if (!client) return { ok: false, error: "supabase_unavailable" };
+  const { error } = await client
+    .from(table)
+    .delete()
+    .eq("id", id)
+    .eq("company_id", companyId);
+  return error ? { ok: false, error: "delete_failed" } : { ok: true };
+}
