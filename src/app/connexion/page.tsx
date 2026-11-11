@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { DEMO_PASSWORD, demoUser } from "@/lib/demo-data";
+import { DEMO_LOGIN_HINT } from "@/lib/demo-data";
 import { useAppStore } from "@/lib/store";
 
 export default function ConnexionPage() {
@@ -12,9 +12,10 @@ export default function ConnexionPage() {
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const hydrated = useAppStore((s) => s.hydrated);
   const setHydrated = useAppStore((s) => s.setHydrated);
-  const [email, setEmail] = useState(demoUser.email);
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [email, setEmail] = useState<string>(DEMO_LOGIN_HINT.email);
+  const [password, setPassword] = useState<string>(DEMO_LOGIN_HINT.password);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!hydrated) {
@@ -27,9 +28,12 @@ export default function ConnexionPage() {
     if (hydrated && isAuthenticated) router.replace("/app");
   }, [hydrated, isAuthenticated, router]);
 
-  function onSubmit(e: FormEvent) {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const res = login(email, password);
+    setBusy(true);
+    setError(null);
+    const res = await login(email, password);
+    setBusy(false);
     if (!res.ok) {
       setError(res.error ?? "Erreur de connexion");
       return;
@@ -69,19 +73,19 @@ export default function ConnexionPage() {
           />
         </label>
         {error && <p className="text-sm text-accent">{error}</p>}
-        <button type="submit" className="btn-primary w-full">
-          Entrer dans l’espace
+        <button type="submit" className="btn-primary w-full" disabled={busy}>
+          {busy ? "Connexion…" : "Entrer dans l’espace"}
         </button>
       </form>
 
       <div className="mt-4 rounded-xl border border-dashed border-line bg-white/60 p-4 text-xs text-muted">
         <p className="font-semibold text-ink">Identifiants démo</p>
         <p className="mt-1">
-          {demoUser.email} / {DEMO_PASSWORD}
+          {DEMO_LOGIN_HINT.email} / {DEMO_LOGIN_HINT.password}
         </p>
         <p className="mt-2">
-          Plus tard : Supabase Auth pour de vrais comptes artisans (gratuit au
-          démarrage, puis facturation selon usage).
+          La session est vérifiée côté serveur. Plus tard : Supabase Auth pour
+          de vrais comptes artisans.
         </p>
       </div>
     </main>

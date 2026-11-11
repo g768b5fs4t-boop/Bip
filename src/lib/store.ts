@@ -10,7 +10,6 @@ import {
   demoQuotes,
   demoSuppliers,
   demoUser,
-  DEMO_PASSWORD,
 } from "./demo-data";
 import { createId } from "./quote-engine";
 import type {
@@ -37,8 +36,11 @@ interface AppState {
   activeConversationId: string;
   draftQuoteId: string | null;
   setHydrated: (v: boolean) => void;
-  login: (email: string, password: string) => { ok: boolean; error?: string };
-  logout: () => void;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ ok: boolean; error?: string }>;
+  logout: () => Promise<void>;
   updateCompany: (patch: Partial<Company>) => void;
   addSupplier: (data: Omit<Supplier, "id" | "companyId" | "createdAt">) => void;
   addClient: (data: Omit<Client, "id" | "companyId" | "createdAt">) => void;
@@ -78,22 +80,41 @@ export const useAppStore = create<AppState>()(
       hydrated: false,
       ...initialState,
       setHydrated: (v) => set({ hydrated: v }),
-      login: (email, password) => {
-        const e = email.trim().toLowerCase();
-        if (
-          (e === demoUser.email || e === "demo") &&
-          password === DEMO_PASSWORD
-        ) {
-          set({ isAuthenticated: true, userEmail: demoUser.email });
+      login: async (email, password) => {
+        try {
+          const res = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+          });
+          const data = (await res.json().catch(() => ({}))) as {
+            error?: string;
+            user?: { email?: string; name?: string };
+          };
+          if (!res.ok) {
+            return {
+              ok: false,
+              error: data.error ?? "Identifiants incorrects.",
+            };
+          }
+          set({
+            isAuthenticated: true,
+            userEmail: data.user?.email ?? demoUser.email,
+            userName: data.user?.name ?? demoUser.name,
+          });
           return { ok: true };
+        } catch {
+          return { ok: false, error: "Impossible de joindre le serveur." };
         }
-        return {
-          ok: false,
-          error:
-            "Identifiants incorrects. Utilisez demo@devisrapide.fr / demo1234",
-        };
       },
-      logout: () => set({ isAuthenticated: false }),
+      logout: async () => {
+        try {
+          await fetch("/api/auth/logout", { method: "POST" });
+        } catch {
+          /* ignore */
+        }
+        set({ isAuthenticated: false });
+      },
       updateCompany: (patch) =>
         set((s) => ({ company: { ...s.company, ...patch } })),
       addSupplier: (data) =>

@@ -6,7 +6,8 @@ Assistant conversationnel pour artisans : catalogues fournisseurs privés, devis
 
 Fonctionne **sans carte bancaire** et sans compte cloud obligatoire :
 
-- Connexion démo : `demo@devisrapide.fr` / `demo1234`
+- Connexion démo : `demo@devisrapide.fr` / `demo1234` (vérifiée côté serveur + cookie de session)
+- API PDF protégée (session, limite de taille, anti-abus, nom de fichier assaini)
 - Données fictives (entreprise, clients, fournisseurs, produits)
 - Chat IA **simulé** (analyse locale du français) branché sur votre catalogue
 - Calculs financiers dans `src/lib/quote-engine.ts` (pas inventés par l’IA)
