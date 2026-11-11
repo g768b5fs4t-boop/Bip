@@ -1,0 +1,4 @@
+reference;designation;unit;purchase_price_ht;margin_percent;sale_price_ht;supplier_id
+MOT200;Moteur tubulaire 30 Nm;u;112,00;40;;sup_somfy
+TEL789;Télécommande murale;u;18,50;;32,00;sup_nice
+CAP001;Capteur soleil/vent;u;45,00;35;;sup_somfy
