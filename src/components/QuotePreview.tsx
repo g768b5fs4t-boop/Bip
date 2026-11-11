@@ -42,6 +42,14 @@ export function QuotePreview({ quote }: { quote: Quote | null }) {
           totals,
         }),
       });
+      if (res.status === 401) {
+        setMessage("Session expirée : reconnectez-vous pour exporter le PDF.");
+        return;
+      }
+      if (res.status === 429) {
+        setMessage("Trop de demandes PDF : patientez une minute.");
+        return;
+      }
       if (!res.ok) throw new Error("PDF impossible");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

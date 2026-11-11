@@ -10,7 +10,6 @@ import {
   demoQuotes,
   demoSuppliers,
   demoUser,
-  DEMO_PASSWORD,
 } from "./demo-data";
 import { createId } from "./quote-engine";
 import type {
@@ -37,8 +36,9 @@ interface AppState {
   activeConversationId: string;
   draftQuoteId: string | null;
   setHydrated: (v: boolean) => void;
-  login: (email: string, password: string) => { ok: boolean; error?: string };
+  login: () => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
+  syncSession: () => Promise<boolean>;
   updateCompany: (patch: Partial<Company>) => void;
   addSupplier: (data: Omit<Supplier, "id" | "companyId" | "createdAt">) => void;
   addClient: (data: Omit<Client, "id" | "companyId" | "createdAt">) => void;
@@ -78,19 +78,39 @@ export const useAppStore = create<AppState>()(
       hydrated: false,
       ...initialState,
       setHydrated: (v) => set({ hydrated: v }),
-      login: (email, password) => {
-        const e = email.trim().toLowerCase();
-        if (
-          (e === demoUser.email || e === "demo") &&
-          password === DEMO_PASSWORD
-        ) {
-          set({ isAuthenticated: true, userEmail: demoUser.email });
-          return { ok: true };
+      syncSession: async () => {
+        try {
+          const res = await fetch("/api/auth/me", { cache: "no-store" });
+          if (!res.ok) {
+            set({ isAuthenticated: false });
+            return false;
+          }
+          const data = (await res.json()) as {
+            authenticated?: boolean;
+            user?: { email?: string; name?: string };
+          };
+          if (!data.authenticated) {
+            set({ isAuthenticated: false });
+            return false;
+          }
+          set({
+            isAuthenticated: true,
+            userEmail: data.user?.email ?? demoUser.email,
+            userName: data.user?.name ?? demoUser.name,
+          });
+          return true;
+        } catch {
+          set({ isAuthenticated: false });
+          return false;
         }
+      },
+      login: async () => {
+        const ok = await get().syncSession();
+        if (ok) return { ok: true };
         return {
           ok: false,
           error:
-            "Identifiants incorrects. Utilisez demo@devisrapide.fr / demo1234",
+            "Impossible d’ouvrir la session. Ouvrez l’app via Cursor (connexion automatique) ou le lien de démo Vercel.",
         };
       },
       logout: () => set({ isAuthenticated: false }),

@@ -9,8 +9,6 @@ import type {
   Supplier,
 } from "./types";
 
-export const DEMO_PASSWORD = "demo1234";
-
 export const demoCompany: Company = {
   id: "co_demo",
   name: "Martin Automatismes",
