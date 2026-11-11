@@ -4,12 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
+import { ThemeToggle } from "./ThemeProvider";
 
 const nav = [
-  { href: "/app", label: "Assistant IA" },
+  { href: "/app", label: "Tableau de bord", exact: true },
+  { href: "/app/creer", label: "Créer un devis" },
+  { href: "/app/assistant", label: "Assistant IA" },
   { href: "/app/clients", label: "Clients" },
   { href: "/app/fournisseurs", label: "Fournisseurs" },
-  { href: "/app/produits", label: "Produits" },
+  { href: "/app/produits", label: "Catalogue" },
   { href: "/app/devis", label: "Devis" },
   { href: "/app/entreprise", label: "Entreprise" },
 ];
@@ -32,14 +35,16 @@ export function Sidebar() {
       <div className="border-b border-line px-4 py-5">
         <p className="font-display text-xl text-brand-deep">DevisRapide IA</p>
         <p className="mt-1 truncate text-xs text-muted">{company.name}</p>
+        <div className="mt-3">
+          <ThemeToggle />
+        </div>
       </div>
 
       <nav className="space-y-1 px-3 py-4">
         {nav.map((item) => {
-          const active =
-            item.href === "/app"
-              ? pathname === "/app"
-              : pathname?.startsWith(item.href);
+          const active = item.exact
+            ? pathname === item.href
+            : pathname?.startsWith(item.href);
           return (
             <Link
               key={item.href}
@@ -61,7 +66,7 @@ export function Sidebar() {
       <div className="mt-2 flex-1 overflow-auto px-3 pb-3">
         <div className="mb-2 flex items-center justify-between px-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Historique
+            Conversations
           </p>
           <button
             type="button"
@@ -85,8 +90,8 @@ export function Sidebar() {
                 }}
                 className={`w-full truncate rounded-lg px-3 py-2 text-left text-xs ${
                   c.id === activeConversationId
-                    ? "bg-white text-brand-deep shadow-sm"
-                    : "text-muted hover:bg-white/70"
+                    ? "bg-[color:var(--bg-elevated)] text-brand-deep shadow-sm"
+                    : "text-muted hover:bg-[color:var(--bg-elevated)]/70"
                 }`}
               >
                 {c.title}
@@ -98,7 +103,7 @@ export function Sidebar() {
 
       <div className="border-t border-line p-4">
         <p className="text-sm font-medium">{userName}</p>
-        <p className="text-xs text-muted">Mode démonstration</p>
+        <p className="text-xs text-muted">Espace artisan</p>
         <button
           type="button"
           onClick={logout}
@@ -112,16 +117,19 @@ export function Sidebar() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-line bg-white/80 px-4 py-3 lg:hidden">
+      <div className="flex items-center justify-between border-b border-line bg-[color:var(--bg-elevated)]/80 px-4 py-3 lg:hidden">
         <p className="font-display text-lg text-brand-deep">DevisRapide IA</p>
-        <button
-          type="button"
-          className="btn-secondary px-3 py-2"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Ouvrir le menu"
-        >
-          Menu
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="btn-secondary px-3 py-2"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Ouvrir le menu"
+          >
+            Menu
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -130,7 +138,7 @@ export function Sidebar() {
           onClick={() => setOpen(false)}
         >
           <aside
-            className="h-full w-72 bg-[#f7fbfb] shadow-soft"
+            className="h-full w-72 bg-[color:var(--nav-bg)] shadow-soft"
             onClick={(e) => e.stopPropagation()}
           >
             {Nav}
@@ -138,7 +146,7 @@ export function Sidebar() {
         </div>
       )}
 
-      <aside className="hidden w-72 shrink-0 border-r border-line bg-[#f7fbfb]/80 lg:block">
+      <aside className="hidden w-72 shrink-0 border-r border-line bg-[color:var(--nav-bg)] lg:block">
         {Nav}
       </aside>
     </>

@@ -56,7 +56,13 @@ export interface Client {
   createdAt: string;
 }
 
-export type QuoteStatus = "brouillon" | "valide" | "envoye" | "refuse";
+export type QuoteStatus =
+  | "brouillon"
+  | "valide"
+  | "envoye"
+  | "accepte"
+  | "refuse"
+  | "archive";
 
 export interface QuoteLine {
   id: string;

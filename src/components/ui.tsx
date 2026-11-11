@@ -50,16 +50,20 @@ export function StatusBadge({
   status: "brouillon" | "valide" | "envoye" | "refuse" | string;
 }) {
   const styles: Record<string, string> = {
-    brouillon: "bg-[#eef3f6] text-muted",
+    brouillon: "bg-[color:var(--chip)] text-muted",
     valide: "bg-[#e7f5ee] text-[var(--ok)]",
     envoye: "bg-brand-soft text-brand-deep",
+    accepte: "bg-[#e7f5ee] text-[var(--ok)]",
     refuse: "bg-[#fdece7] text-accent",
+    archive: "bg-[color:var(--chip)] text-muted",
   };
   const labels: Record<string, string> = {
     brouillon: "Brouillon",
     valide: "Validé",
     envoye: "Envoyé",
+    accepte: "Accepté",
     refuse: "Refusé",
+    archive: "Archivé",
   };
   return (
     <span
