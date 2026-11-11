@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { callOpenAiQuoteDraft } from "@/lib/ai/openai-quote";
-import { resolveAiDraftToQuote } from "@/lib/ai/resolve-draft";
-import { buildQuoteFromRequest } from "@/lib/ai-parser";
+import { runQuoteAssistant } from "@/lib/ai/run-quote";
 import { resolveViewer } from "@/lib/auth-server";
 import { getServerFeatureFlags } from "@/lib/config";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { computeQuoteTotals } from "@/lib/quote-engine";
 import type { Client, Company, Product, Quote } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -48,60 +45,14 @@ export async function POST(req: NextRequest) {
   }
 
   const flags = getServerFeatureFlags();
-  const existingQuotes = body.quotes ?? [];
+  const result = await runQuoteAssistant({
+    message,
+    company: body.company,
+    products: body.products,
+    clients: body.clients,
+    existingQuotes: body.quotes ?? [],
+    preferOpenAi: flags.openaiConfigured,
+  });
 
-  try {
-    if (flags.openaiConfigured) {
-      const draft = await callOpenAiQuoteDraft({
-        message,
-        products: body.products.filter((p) => p.companyId === body.company!.id),
-        clients: body.clients.filter((c) => c.companyId === body.company!.id),
-        hourlyRateHt: body.company.hourlyRateHt,
-        travelFeeHt: body.company.travelFeeHt,
-      });
-      const resolved = resolveAiDraftToQuote({
-        draft,
-        company: body.company,
-        products: body.products,
-        clients: body.clients,
-        existingQuotes,
-      });
-      const totals = resolved.quote
-        ? computeQuoteTotals(resolved.quote.lines)
-        : null;
-      return NextResponse.json({
-        ...resolved,
-        provider: "openai",
-        totals,
-      });
-    }
-
-    // Repli déterministe documenté — pas une fausse IA
-    const fallback = buildQuoteFromRequest({
-      message,
-      company: body.company,
-      products: body.products,
-      clients: body.clients,
-      existingQuotes,
-    });
-    const totals = fallback.quote
-      ? computeQuoteTotals(fallback.quote.lines)
-      : null;
-    return NextResponse.json({
-      ...fallback,
-      provider: "deterministic-parser",
-      totals,
-      notice:
-        "OPENAI_API_KEY absente : analyse déterministe locale (pas un modèle IA).",
-    });
-  } catch (error) {
-    console.error("ai_quote_failed");
-    return NextResponse.json(
-      {
-        error: "Échec assistant",
-        detail: error instanceof Error ? error.message : "inconnu",
-      },
-      { status: 502 },
-    );
-  }
+  return NextResponse.json(result);
 }

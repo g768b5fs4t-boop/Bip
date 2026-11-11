@@ -66,9 +66,8 @@ export async function POST(req: NextRequest) {
   });
 
   if (!res.ok) {
-    const text = await res.text();
     return NextResponse.json(
-      { error: "Échec Resend", detail: text.slice(0, 200) },
+      { error: "Échec d’envoi de l’e-mail. Réessayez plus tard." },
       { status: 502 },
     );
   }

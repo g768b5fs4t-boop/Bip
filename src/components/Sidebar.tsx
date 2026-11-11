@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAppStore } from "@/lib/store";
 import { ThemeToggle } from "./ThemeProvider";
@@ -19,6 +19,7 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const {
     company,
@@ -28,6 +29,7 @@ export function Sidebar() {
     newConversation,
     logout,
     userName,
+    cloudSync,
   } = useAppStore();
 
   const Nav = (
@@ -103,10 +105,17 @@ export function Sidebar() {
 
       <div className="border-t border-line p-4">
         <p className="text-sm font-medium">{userName}</p>
-        <p className="text-xs text-muted">Espace artisan</p>
+        <p className="text-xs text-muted">
+          {cloudSync ? "Compte cloud (données isolées)" : "Espace local"}
+        </p>
         <button
           type="button"
-          onClick={logout}
+          onClick={() => {
+            void (async () => {
+              await logout();
+              router.replace("/connexion");
+            })();
+          }}
           className="mt-3 text-xs font-semibold text-accent"
         >
           Se déconnecter
