@@ -7,6 +7,11 @@ OPENAI_MODEL=gpt-4o-mini
 
 # Supabase (comptes + sync multi-appareils)
 SUPABASE_URL=
+# Nouvelles clés API (recommandé) :
+SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
+SUPABASE_JWKS_URL=
+# Ou clés legacy JWT :
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 

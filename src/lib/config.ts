@@ -8,11 +8,31 @@ export type FeatureFlags = {
   mode: "local-demo" | "hybrid" | "saas";
 };
 
+/** Clés Supabase : legacy (anon/service_role) ou nouvelles (publishable/secret). */
+export function getSupabaseUrl(): string | undefined {
+  return process.env.SUPABASE_URL?.trim() || undefined;
+}
+
+export function getSupabasePublishableKey(): string | undefined {
+  return (
+    process.env.SUPABASE_PUBLISHABLE_KEY?.trim() ||
+    process.env.SUPABASE_ANON_KEY?.trim() ||
+    undefined
+  );
+}
+
+export function getSupabaseSecretKey(): string | undefined {
+  return (
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    undefined
+  );
+}
+
 export function getServerFeatureFlags(): FeatureFlags {
   const supabaseConfigured = Boolean(
-    process.env.SUPABASE_URL?.trim() &&
-      (process.env.SUPABASE_ANON_KEY?.trim() ||
-        process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()),
+    getSupabaseUrl() &&
+      (getSupabasePublishableKey() || getSupabaseSecretKey()),
   );
   const openaiConfigured = Boolean(process.env.OPENAI_API_KEY?.trim());
   const whisperConfigured = openaiConfigured; // même clé, endpoint audio

@@ -51,8 +51,8 @@ export default function InscriptionPage() {
               <li>Créer un projet gratuit sur supabase.com</li>
               <li>Exécuter le SQL de `supabase/migrations/001_init.sql`</li>
               <li>
-                Renseigner `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-                `SUPABASE_SERVICE_ROLE_KEY` (Vercel / secrets)
+                Renseigner `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+                `SUPABASE_SECRET_KEY` (Vercel / secrets Cursor)
               </li>
             </ol>
             <Link href="/connexion" className="btn-primary inline-flex">

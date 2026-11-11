@@ -12,7 +12,7 @@
 |----------|---------|--------------|
 | `OPENAI_API_KEY` | IA devis structurée + Whisper | Payant à l’usage |
 | `OPENAI_MODEL` | Modèle chat (défaut `gpt-4o-mini`) | Inclus usage |
-| `SUPABASE_URL` + `SUPABASE_ANON_KEY` + `SUPABASE_SERVICE_ROLE_KEY` | Comptes + sync + RLS | Gratuit au démarrage |
+| `SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SECRET_KEY` (ou anon/service_role legacy) | Comptes + sync + RLS | Gratuit au démarrage |
 | `RESEND_API_KEY` + `EMAIL_FROM` | Envoi devis e-mail | Gratuit petit volume |
 
 1. Copier `.env.example` vers les secrets Vercel / Cursor.

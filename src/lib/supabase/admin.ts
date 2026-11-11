@@ -1,20 +1,21 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getServerFeatureFlags } from "@/lib/config";
+import {
+  getServerFeatureFlags,
+  getSupabaseSecretKey,
+  getSupabasePublishableKey,
+  getSupabaseUrl,
+} from "@/lib/config";
 
 let cached: SupabaseClient | null = null;
 
-/** Client serveur uniquement (service role si dispo, sinon anon). */
+/** Client serveur uniquement (secret/service_role si dispo, sinon publishable/anon). */
 export function getSupabaseAdmin(): SupabaseClient | null {
   const flags = getServerFeatureFlags();
   if (!flags.supabaseConfigured) return null;
   if (cached) return cached;
 
-  const url = process.env.SUPABASE_URL!.trim();
-  const key = (
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    ""
-  ).trim();
+  const url = getSupabaseUrl();
+  const key = getSupabaseSecretKey() || getSupabasePublishableKey() || "";
   if (!url || !key) return null;
 
   cached = createClient(url, key, {
