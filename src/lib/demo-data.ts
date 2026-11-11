@@ -9,12 +9,6 @@ import type {
   Supplier,
 } from "./types";
 
-/** Affichage UI uniquement — la vérification se fait côté serveur. */
-export const DEMO_LOGIN_HINT = {
-  email: "demo@devisrapide.fr",
-  password: "demo1234",
-} as const;
-
 export const demoCompany: Company = {
   id: "co_demo",
   name: "Martin Automatismes",

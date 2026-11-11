@@ -36,11 +36,9 @@ interface AppState {
   activeConversationId: string;
   draftQuoteId: string | null;
   setHydrated: (v: boolean) => void;
-  login: (
-    email: string,
-    password: string,
-  ) => Promise<{ ok: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  login: () => Promise<{ ok: boolean; error?: string }>;
+  logout: () => void;
+  syncSession: () => Promise<boolean>;
   updateCompany: (patch: Partial<Company>) => void;
   addSupplier: (data: Omit<Supplier, "id" | "companyId" | "createdAt">) => void;
   addClient: (data: Omit<Client, "id" | "companyId" | "createdAt">) => void;
@@ -80,41 +78,42 @@ export const useAppStore = create<AppState>()(
       hydrated: false,
       ...initialState,
       setHydrated: (v) => set({ hydrated: v }),
-      login: async (email, password) => {
+      syncSession: async () => {
         try {
-          const res = await fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, password }),
-          });
-          const data = (await res.json().catch(() => ({}))) as {
-            error?: string;
+          const res = await fetch("/api/auth/me", { cache: "no-store" });
+          if (!res.ok) {
+            set({ isAuthenticated: false });
+            return false;
+          }
+          const data = (await res.json()) as {
+            authenticated?: boolean;
             user?: { email?: string; name?: string };
           };
-          if (!res.ok) {
-            return {
-              ok: false,
-              error: data.error ?? "Identifiants incorrects.",
-            };
+          if (!data.authenticated) {
+            set({ isAuthenticated: false });
+            return false;
           }
           set({
             isAuthenticated: true,
             userEmail: data.user?.email ?? demoUser.email,
             userName: data.user?.name ?? demoUser.name,
           });
-          return { ok: true };
+          return true;
         } catch {
-          return { ok: false, error: "Impossible de joindre le serveur." };
+          set({ isAuthenticated: false });
+          return false;
         }
       },
-      logout: async () => {
-        try {
-          await fetch("/api/auth/logout", { method: "POST" });
-        } catch {
-          /* ignore */
-        }
-        set({ isAuthenticated: false });
+      login: async () => {
+        const ok = await get().syncSession();
+        if (ok) return { ok: true };
+        return {
+          ok: false,
+          error:
+            "Impossible d’ouvrir la session. Ouvrez l’app via Cursor (connexion automatique) ou le lien de démo Vercel.",
+        };
       },
+      logout: () => set({ isAuthenticated: false }),
       updateCompany: (patch) =>
         set((s) => ({ company: { ...s.company, ...patch } })),
       addSupplier: (data) =>

@@ -2,18 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
-import { DEMO_LOGIN_HINT } from "@/lib/demo-data";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/lib/store";
 
 export default function ConnexionPage() {
   const router = useRouter();
   const login = useAppStore((s) => s.login);
+  const syncSession = useAppStore((s) => s.syncSession);
   const isAuthenticated = useAppStore((s) => s.isAuthenticated);
   const hydrated = useAppStore((s) => s.hydrated);
   const setHydrated = useAppStore((s) => s.setHydrated);
-  const [email, setEmail] = useState<string>(DEMO_LOGIN_HINT.email);
-  const [password, setPassword] = useState<string>(DEMO_LOGIN_HINT.password);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -25,14 +23,21 @@ export default function ConnexionPage() {
   }, [hydrated, setHydrated]);
 
   useEffect(() => {
+    if (!hydrated) return;
+    void (async () => {
+      const ok = await syncSession();
+      if (ok) router.replace("/app");
+    })();
+  }, [hydrated, syncSession, router]);
+
+  useEffect(() => {
     if (hydrated && isAuthenticated) router.replace("/app");
   }, [hydrated, isAuthenticated, router]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function enter() {
     setBusy(true);
     setError(null);
-    const res = await login(email, password);
+    const res = await login();
     setBusy(false);
     if (!res.ok) {
       setError(res.error ?? "Erreur de connexion");
@@ -46,46 +51,29 @@ export default function ConnexionPage() {
       <Link href="/" className="font-display text-3xl text-brand-deep">
         DevisRapide IA
       </Link>
-      <h1 className="mt-6 text-xl font-semibold">Connexion (démo)</h1>
+      <h1 className="mt-6 text-xl font-semibold">Accéder à la démo</h1>
       <p className="mt-2 text-sm text-muted">
-        Compte fictif inclus — aucun service payant requis pour tester.
+        Aucun mot de passe à saisir : la session est ouverte via Cursor (app
+        privée) ou en mode démo sur le lien de test.
       </p>
 
-      <form onSubmit={onSubmit} className="panel mt-6 space-y-4 p-5">
-        <label className="block text-sm">
-          E-mail
-          <input
-            className="input mt-1"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="username"
-          />
-        </label>
-        <label className="block text-sm">
-          Mot de passe
-          <input
-            className="input mt-1"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
-        </label>
+      <div className="panel mt-6 space-y-4 p-5">
         {error && <p className="text-sm text-accent">{error}</p>}
-        <button type="submit" className="btn-primary w-full" disabled={busy}>
-          {busy ? "Connexion…" : "Entrer dans l’espace"}
+        <button
+          type="button"
+          className="btn-primary w-full"
+          disabled={busy}
+          onClick={() => void enter()}
+        >
+          {busy ? "Ouverture…" : "Entrer dans l’espace"}
         </button>
-      </form>
+      </div>
 
       <div className="mt-4 rounded-xl border border-dashed border-line bg-white/60 p-4 text-xs text-muted">
-        <p className="font-semibold text-ink">Identifiants démo</p>
+        <p className="font-semibold text-ink">Comment tester</p>
         <p className="mt-1">
-          {DEMO_LOGIN_HINT.email} / {DEMO_LOGIN_HINT.password}
-        </p>
-        <p className="mt-2">
-          La session est vérifiée côté serveur. Plus tard : Supabase Auth pour
-          de vrais comptes artisans.
+          1) Ouvrez le lien de démo fourni dans le chat, ou 2) l’app Cursor
+          publiée après mise à jour. Puis cliquez sur le bouton ci-dessus.
         </p>
       </div>
     </main>

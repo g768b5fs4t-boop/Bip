@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  getSessionFromRequest,
-  sanitizePdfFilename,
-} from "@/lib/auth-server";
+import { resolveViewer, sanitizePdfFilename } from "@/lib/auth-server";
 import { buildQuotePdf } from "@/lib/pdf-quote";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import type { Client, Company, Quote, QuoteTotals } from "@/lib/types";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 64 * 1024; // 64 Ko
+const MAX_BODY_BYTES = 64 * 1024;
 const MAX_LINES = 80;
 const MAX_STRING = 500;
 
@@ -18,8 +16,8 @@ function tooLong(value: unknown, max = MAX_STRING): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const session = getSessionFromRequest(req);
-  if (!session) {
+  const viewer = await resolveViewer(req);
+  if (!viewer) {
     return NextResponse.json(
       { error: "Connexion requise pour générer un PDF." },
       { status: 401 },
@@ -77,9 +75,7 @@ export async function POST(req: NextRequest) {
     tooLong(body.company.name) ||
     tooLong(body.client.name) ||
     tooLong(body.quote.number, 40) ||
-    lines.some(
-      (l) => tooLong(l.designation) || tooLong(l.reference ?? "", 40),
-    )
+    lines.some((l) => tooLong(l.designation) || tooLong(l.reference ?? "", 40))
   ) {
     return NextResponse.json({ error: "Champs texte trop longs." }, { status: 400 });
   }
@@ -97,10 +93,10 @@ export async function POST(req: NextRequest) {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="${safeName}.pdf"`,
-        "Cache-Control": "no-store",
+        "Cache-Control": "private, no-store",
       },
     });
-  } catch (error) {
+  } catch {
     console.error("pdf_generation_failed");
     return NextResponse.json(
       { error: "Échec génération PDF" },
