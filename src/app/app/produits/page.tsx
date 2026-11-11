@@ -54,7 +54,8 @@ export default function ProduitsPage() {
         <div>
           <h1 className="font-display text-3xl text-brand-deep">Produits & tarifs</h1>
           <p className="mt-1 text-sm text-muted">
-            Recherche instantanée · marge ou prix de vente · date de mise à jour
+            Recherche instantanée · marge ou prix de vente · date de mise à jour. Les prix
+            absents bloquent le devis — jamais inventés.
           </p>
         </div>
         <a className="btn-secondary text-xs" href="/sample-catalogue.csv" download>

@@ -50,6 +50,7 @@ export function Sidebar() {
                   ? "bg-brand text-white shadow-soft"
                   : "text-ink hover:bg-brand-soft"
               }`}
+              aria-current={active ? "page" : undefined}
             >
               {item.label}
             </Link>

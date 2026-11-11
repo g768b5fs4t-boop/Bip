@@ -57,6 +57,16 @@ h3,
   .btn-primary:hover {
     background: var(--brand-deep);
   }
+  .btn-primary:disabled,
+  .btn-secondary:disabled {
+    @apply cursor-not-allowed opacity-55;
+  }
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .input:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border bg-white px-4 py-2.5 text-sm font-semibold transition;
     border-color: var(--line);
@@ -64,6 +74,17 @@ h3,
   }
   .btn-secondary:hover {
     background: #f7fafb;
+  }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
   .input {
     @apply w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition;

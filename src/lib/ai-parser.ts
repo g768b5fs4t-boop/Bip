@@ -1,11 +1,10 @@
-import { createId, nextQuoteNumber, resolveSalePriceHt } from "./quote-engine";
-import type {
-  Client,
-  Company,
-  Product,
-  Quote,
-  QuoteLine,
-} from "./types";
+import {
+  buildPercentDiscountLine,
+  createId,
+  nextQuoteNumber,
+  resolveSalePriceHt,
+} from "./quote-engine";
+import type { Client, Company, Product, Quote, QuoteLine } from "./types";
 
 export interface ParseResult {
   ok: boolean;
@@ -16,10 +15,16 @@ export interface ParseResult {
 
 interface ParsedRequest {
   clientHint?: string;
-  productRequests: { reference?: string; quantity: number; hint?: string }[];
+  productRequests: {
+    reference?: string;
+    designationHint?: string;
+    quantity: number;
+  }[];
   laborHours?: number;
   travelAmount?: number;
   travelMentioned: boolean;
+  discountPercent?: number;
+  discountAmount?: number;
 }
 
 function normalize(text: string): string {
@@ -31,13 +36,33 @@ function normalize(text: string): string {
 
 function parseQuantityNear(text: string, index: number): number {
   const before = text.slice(Math.max(0, index - 40), index);
-  // "2×", "2x", "2 moteurs ", "2 "
   const match =
     before.match(/(\d+(?:[.,]\d+)?)\s*[x×]\s*$/i) ||
     before.match(/(\d+(?:[.,]\d+)?)\s+[A-Za-zÀ-ÿ'’-]+\s*$/i) ||
     before.match(/(\d+(?:[.,]\d+)?)\s*$/);
   if (!match) return 1;
   return Number(match[1].replace(",", "."));
+}
+
+function findCatalogProduct(
+  products: Product[],
+  companyId: string,
+  req: ParsedRequest["productRequests"][number],
+): Product | undefined {
+  const scoped = products.filter((p) => p.companyId === companyId);
+  if (req.reference) {
+    return scoped.find(
+      (p) => p.reference.toUpperCase() === req.reference!.toUpperCase(),
+    );
+  }
+  if (req.designationHint) {
+    const hint = normalize(req.designationHint);
+    const exact = scoped.filter((p) => normalize(p.designation) === hint);
+    if (exact.length === 1) return exact[0];
+    const partial = scoped.filter((p) => normalize(p.designation).includes(hint));
+    if (partial.length === 1) return partial[0];
+  }
+  return undefined;
 }
 
 /** Analyse déterministe (MVP) — remplacable plus tard par un LLM + ce moteur. */
@@ -65,8 +90,8 @@ export function parseQuoteRequest(raw: string): ParsedRequest {
     });
   }
 
-  // Motifs du type "2 moteurs MOT123" ou "4 TEL456"
-  const compactRef = /(\d+(?:[.,]\d+)?)\s+(?:moteurs?|telecommandes?|télécommandes?|rails?|pieces?|produits?)?\s*([A-Z]{2,}\d{2,})/gi;
+  const compactRef =
+    /(\d+(?:[.,]\d+)?)\s+(?:moteurs?|telecommandes?|télécommandes?|rails?|pieces?|produits?)?\s*([A-Z]{2,}\d{2,})/gi;
   while ((m = compactRef.exec(text)) !== null) {
     const reference = m[2].toUpperCase();
     if (!productRequests.some((p) => p.reference === reference)) {
@@ -75,6 +100,18 @@ export function parseQuoteRequest(raw: string): ParsedRequest {
         quantity: Number(m[1].replace(",", ".")),
       });
     }
+  }
+
+  // Désignation catalogue explicite, sans code référence collé (évite « télécommandes TEL456 »)
+  const named =
+    /(\d+(?:[.,]\d+)?)\s*[x×]\s+(moteur tubulaire[\w\s]{0,30}|télécommande[\w\s]{0,30}|telecommande[\w\s]{0,30}|rail de guidage[\w\s]{0,30})(?![A-Z0-9])/gi;
+  while ((m = named.exec(text)) !== null) {
+    const designationHint = m[2].trim();
+    if (/[A-Z]{2,}\d{2,}/.test(designationHint)) continue;
+    productRequests.push({
+      designationHint,
+      quantity: Number(m[1].replace(",", ".")),
+    });
   }
 
   let laborHours: number | undefined;
@@ -104,12 +141,23 @@ export function parseQuoteRequest(raw: string): ParsedRequest {
     travelAmount = Number(travelMatch2[1].replace(",", "."));
   }
 
+  let discountPercent: number | undefined;
+  let discountAmount: number | undefined;
+  const pct = norm.match(/remise\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*%/);
+  const amt = text.match(
+    /remise\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*€/i,
+  );
+  if (pct) discountPercent = Number(pct[1].replace(",", "."));
+  if (amt) discountAmount = Number(amt[1].replace(",", "."));
+
   return {
     clientHint,
     productRequests,
     laborHours,
     travelAmount,
     travelMentioned,
+    discountPercent,
+    discountAmount,
   };
 }
 
@@ -126,13 +174,14 @@ export function buildQuoteFromRequest(params: {
   const lines: QuoteLine[] = [];
   const vat = company.defaultVatRate;
 
-  // Client
   let client: Client | undefined;
   if (parsed.clientHint) {
     const hint = normalize(parsed.clientHint);
-    client = clients.find((c) => normalize(c.name).includes(hint) || hint.includes(normalize(c.name)));
+    client = clients.find(
+      (c) =>
+        normalize(c.name).includes(hint) || hint.includes(normalize(c.name)),
+    );
     if (!client) {
-      // Essai sur le nom de famille seul
       const last = hint.split(/\s+/).pop()!;
       client = clients.find((c) => normalize(c.name).includes(last));
     }
@@ -145,7 +194,11 @@ export function buildQuoteFromRequest(params: {
     missing.push("Indiquez le client (ex. « pour Monsieur Martin »).");
   }
 
-  if (parsed.productRequests.length === 0 && parsed.laborHours == null && !parsed.travelMentioned) {
+  if (
+    parsed.productRequests.length === 0 &&
+    parsed.laborHours == null &&
+    !parsed.travelMentioned
+  ) {
     return {
       ok: false,
       missing: [
@@ -157,18 +210,13 @@ export function buildQuoteFromRequest(params: {
   }
 
   for (const req of parsed.productRequests) {
-    if (!req.reference) {
-      missing.push("Une référence produit est manquante.");
-      continue;
-    }
-    const product = products.find(
-      (p) =>
-        p.companyId === company.id &&
-        p.reference.toUpperCase() === req.reference!.toUpperCase(),
-    );
+    const product = findCatalogProduct(products, company.id, req);
     if (!product) {
+      const label = req.reference
+        ? `Référence « ${req.reference} »`
+        : `Produit « ${req.designationHint} »`;
       missing.push(
-        `Référence « ${req.reference} » inconnue dans votre catalogue. Ajoutez-la ou vérifiez l'orthographe.`,
+        `${label} introuvable dans votre catalogue. Je n'invente jamais une référence ni un prix.`,
       );
       continue;
     }
@@ -228,14 +276,41 @@ export function buildQuoteFromRequest(params: {
     }
   }
 
+  if (parsed.discountPercent != null) {
+    const discount = buildPercentDiscountLine(
+      lines,
+      parsed.discountPercent,
+      vat,
+    );
+    if (!discount) {
+      missing.push("Remise en % invalide ou base HT nulle.");
+    } else {
+      lines.push(discount);
+    }
+  } else if (parsed.discountAmount != null) {
+    if (parsed.discountAmount <= 0) {
+      missing.push("Montant de remise invalide.");
+    } else {
+      lines.push({
+        id: createId("line"),
+        type: "remise",
+        designation: "Remise commerciale",
+        quantity: 1,
+        unit: "forfait",
+        unitPriceHt: parsed.discountAmount,
+        vatRate: vat,
+      });
+    }
+  }
+
   if (missing.length > 0) {
     return {
       ok: false,
       missing,
       assistantMessage:
         "Avant de préparer le devis, j'ai besoin de précisions :\n\n" +
-        missing.map((m) => `• ${m}`).join("\n") +
-        "\n\nJe n'invente jamais un tarif manquant.",
+        missing.map((item) => `• ${item}`).join("\n") +
+        "\n\nJe n'invente jamais un tarif, une référence ou un client manquant.",
     };
   }
 
@@ -277,7 +352,7 @@ export function buildQuoteFromRequest(params: {
       `Voici un **brouillon de devis ${quote.number}** pour ${client.name}.\n\n` +
       `${summaryLines}\n\n` +
       `Les totaux HT / TVA / TTC sont calculés automatiquement (code déterministe).\n` +
-      `Consultez l'aperçu à droite, validez le devis, puis exportez en PDF.\n` +
+      `Consultez l'aperçu, validez le devis, puis exportez en PDF.\n` +
       `Je n'enverrai **jamais** ce devis par e-mail sans votre accord explicite.`,
   };
 }

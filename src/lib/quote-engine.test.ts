@@ -1,47 +1,114 @@
+import { describe, expect, it } from "vitest";
 import { buildQuoteFromRequest } from "./ai-parser";
 import {
   demoClients,
   demoCompany,
   demoProducts,
 } from "./demo-data";
-import { computeQuoteTotals, resolveSalePriceHt } from "./quote-engine";
+import {
+  buildPercentDiscountLine,
+  computeQuoteTotals,
+  lineTotalHt,
+  resolveSalePriceHt,
+} from "./quote-engine";
+import type { QuoteLine } from "./types";
 
-function assert(cond: unknown, msg: string) {
-  if (!cond) throw new Error(msg);
-}
+describe("quote-engine", () => {
+  it("calcule le prix de vente MOT123 via marge", () => {
+    const mot = demoProducts.find((p) => p.reference === "MOT123")!;
+    expect(resolveSalePriceHt(mot, demoCompany)).toBe(125.3);
+  });
 
-const mot = demoProducts.find((p) => p.reference === "MOT123")!;
-const saleMot = resolveSalePriceHt(mot, demoCompany)!;
-assert(saleMot === 125.3, `MOT123 sale expected 125.3 got ${saleMot}`);
+  it("applique une remise négative correctement", () => {
+    const line: QuoteLine = {
+      id: "r1",
+      type: "remise",
+      designation: "Remise",
+      quantity: 1,
+      unit: "forfait",
+      unitPriceHt: 50,
+      vatRate: 20,
+    };
+    expect(lineTotalHt(line)).toBe(-50);
+  });
 
-const result = buildQuoteFromRequest({
-  message:
-    "Fais-moi un devis pour Monsieur Martin, avec 2 moteurs référence MOT123, 4 télécommandes TEL456, 5 heures de pose et 150 € de déplacement.",
-  company: demoCompany,
-  products: demoProducts,
-  clients: demoClients,
-  existingQuotes: [],
+  it("calcule une remise % déterministe", () => {
+    const lines: QuoteLine[] = [
+      {
+        id: "l1",
+        type: "produit",
+        designation: "A",
+        quantity: 2,
+        unit: "u",
+        unitPriceHt: 100,
+        vatRate: 20,
+      },
+    ];
+    const discount = buildPercentDiscountLine(lines, 10, 20)!;
+    expect(discount.unitPriceHt).toBe(20);
+    const totals = computeQuoteTotals([...lines, discount]);
+    expect(totals.totalHt).toBe(180);
+    expect(totals.totalVat).toBe(36);
+    expect(totals.totalTtc).toBe(216);
+  });
 });
 
-assert(result.ok, result.assistantMessage);
-assert(result.quote?.lines.length === 4, "expected 4 lines");
-const totals = computeQuoteTotals(result.quote!.lines);
-// 2*125.3 + 4*39 + 5*55 + 150 = 250.6 + 156 + 275 + 150 = 831.6 HT
-assert(totals.totalHt === 831.6, `HT expected 831.6 got ${totals.totalHt}`);
-assert(totals.totalVat === 166.32, `TVA expected 166.32 got ${totals.totalVat}`);
-assert(totals.totalTtc === 997.92, `TTC expected 997.92 got ${totals.totalTtc}`);
+describe("ai-parser", () => {
+  it("produit le devis exemple du cahier des charges", () => {
+    const result = buildQuoteFromRequest({
+      message:
+        "Fais-moi un devis pour Monsieur Martin, avec 2 moteurs référence MOT123, 4 télécommandes TEL456, 5 heures de pose et 150 € de déplacement.",
+      company: demoCompany,
+      products: demoProducts,
+      clients: demoClients,
+      existingQuotes: [],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.quote?.lines).toHaveLength(4);
+    const totals = computeQuoteTotals(result.quote!.lines);
+    expect(totals.totalHt).toBe(831.6);
+    expect(totals.totalVat).toBe(166.32);
+    expect(totals.totalTtc).toBe(997.92);
+  });
 
-const missing = buildQuoteFromRequest({
-  message: "Devis pour Monsieur Martin avec 1 référence XYZ999",
-  company: demoCompany,
-  products: demoProducts,
-  clients: demoClients,
-  existingQuotes: [],
+  it("refuse une référence inconnue sans inventer", () => {
+    const missing = buildQuoteFromRequest({
+      message: "Devis pour Monsieur Martin avec 1 référence XYZ999",
+      company: demoCompany,
+      products: demoProducts,
+      clients: demoClients,
+      existingQuotes: [],
+    });
+    expect(missing.ok).toBe(false);
+    expect(missing.assistantMessage).toContain("XYZ999");
+    expect(missing.assistantMessage.toLowerCase()).toContain("invente");
+  });
+
+  it("refuse un client inconnu", () => {
+    const missing = buildQuoteFromRequest({
+      message: "Devis pour Madame Inconnue avec 1 référence MOT123",
+      company: demoCompany,
+      products: demoProducts,
+      clients: demoClients,
+      existingQuotes: [],
+    });
+    expect(missing.ok).toBe(false);
+    expect(missing.assistantMessage).toMatch(/introuvable|Client/i);
+  });
+
+  it("applique une remise 10 % si demandée", () => {
+    const result = buildQuoteFromRequest({
+      message:
+        "Devis pour Monsieur Martin : 2 référence MOT123, remise de 10 %",
+      company: demoCompany,
+      products: demoProducts,
+      clients: demoClients,
+      existingQuotes: [],
+    });
+    expect(result.ok).toBe(true);
+    expect(result.quote?.lines.some((l) => l.type === "remise")).toBe(true);
+    const totals = computeQuoteTotals(result.quote!.lines);
+    // 2 * 125.3 = 250.6 ; remise 10% = 25.06 ; HT = 225.54
+    expect(totals.totalHt).toBe(225.54);
+  });
 });
-assert(!missing.ok, "unknown ref should fail");
-assert(
-  missing.assistantMessage.includes("XYZ999"),
-  "should mention unknown ref",
-);
-
-console.log("OK — quote-engine & ai-parser");
