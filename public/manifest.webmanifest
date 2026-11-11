@@ -1,0 +1,18 @@
+{
+  "name": "DevisRapide IA",
+  "short_name": "DevisRapide",
+  "description": "Créer et envoyer un devis artisan en moins de deux minutes.",
+  "start_url": "/app/creer",
+  "display": "standalone",
+  "background_color": "#eef3f6",
+  "theme_color": "#0f5c5c",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

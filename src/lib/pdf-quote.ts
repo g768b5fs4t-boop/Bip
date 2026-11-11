@@ -117,13 +117,30 @@ export async function buildQuotePdf(params: {
     .fillColor("#94A3B8")
     .text(company.legalMentions, 50, y, { width: 495 });
 
+  y += 40;
+  if (y > 680) {
+    doc.addPage();
+    y = 50;
+  }
+  doc
+    .fontSize(9)
+    .fillColor("#0F172A")
+    .text("Bon pour accord", 50, y)
+    .fontSize(8)
+    .fillColor("#64748B")
+    .text("Date : ____________    Signature du client : ____________________", 50, y + 16, {
+      width: 495,
+    });
+
   doc
     .fontSize(8)
     .fillColor("#94A3B8")
-    .text("Document généré avec DevisRapide IA — validation humaine requise avant envoi.", 50, 780, {
-      width: 495,
-      align: "center",
-    });
+    .text(
+      "Document généré avec DevisRapide IA — validation humaine requise avant envoi. Mentions selon configuration entreprise.",
+      50,
+      780,
+      { width: 495, align: "center" },
+    );
 
   doc.end();
   return done;
